@@ -31,6 +31,7 @@ route is already publicly deployed.
 - [Scopes](#scopes)
 - [HTTP status codes](#http-status-codes)
 - [Implementation status](#implementation-status)
+- [Sending Webhook](#sending-webhook)
 
 ## Environments
 
@@ -963,3 +964,67 @@ Common error codes include:
 | Direct-debit mandates | New domain capability required. |
 | Signed webhook delivery and resend | Existing capability. |
 | Multiple public webhook endpoints | Public management adapter required. |
+
+
+## Sending Webhook
+You can now dispatch webhooks directly from a controller without the webhook route middleware.
+For an authenticated public API controller:
+```
+use Illuminate\Http\Request;
+use Modules\BaasModules\AuthProfile\App\Services\AuthenticationProfileWebhookDispatcher;
+
+public function creditWallet(
+    Request $request,
+    AuthenticationProfileWebhookDispatcher $webhooks
+) {
+    $transaction = $this->processWalletCredit();
+
+    $webhooks->dispatchForRequest(
+        $request,
+        'wallet.credited',
+        [
+            'transaction_id' => $transaction->uuid,
+            'amount' => $transaction->amount,
+            'currency' => $transaction->currency,
+            'status' => $transaction->status,
+        ],
+        $transaction->uuid // Used for idempotency
+    );
+
+    return response()->json([
+        'status' => 'success',
+        'data' => $transaction,
+    ]);
+}
+```
+
+The route only needs the normal API authentication middleware:
+```
+Route::post('/wallet/credit', [WalletController::class, 'creditWallet'])
+    ->middleware([
+        'business.api.authenticate',
+        'business.api.check.scopes',
+        'business.api.rate_limit',
+    ]);
+```
+
+For internal controllers where you have the merchant ID
+```
+$webhooks->dispatchForUser(
+    userId: $merchantId,
+    eventType: 'wallet.credited',
+    payload: $payload,
+    environment: 'live',
+    eventId: $transaction->uuid,
+);
+```
+
+You can also dispatch using a known AuthenticationProfile:
+```
+$webhooks->dispatchForProfile(
+    $authenticationProfile,
+    'wallet.credited',
+    $payload,
+    $transaction->uuid,
+);
+```
