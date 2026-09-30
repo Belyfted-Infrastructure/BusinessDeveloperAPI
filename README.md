@@ -963,28 +963,3 @@ Common error codes include:
 | Direct-debit mandates | New domain capability required. |
 | Signed webhook delivery and resend | Existing capability. |
 | Multiple public webhook endpoints | Public management adapter required. |
-
-## Implementation boundary
-
-The public API should use dedicated public controllers and application services
-that invoke existing domain services. Dashboard controllers, Sanctum sessions,
-transaction PIN middleware, UI encryption envelopes, and step-based form state
-must not become part of the public contract.
-
-Every request should pass through the following controls in order:
-
-1. Resolve the environment from the hostname.
-2. Assign or validate the request ID.
-3. Authenticate the Authentication Profile.
-4. Confirm that the profile is active and approved.
-5. Confirm that its environment matches the hostname.
-6. Enforce the IP and endpoint allowlists.
-7. Enforce the required API scope.
-8. Verify the digital signature when a body is present.
-9. Enforce the Authentication Profile rate limit.
-10. Reserve the idempotency key for mutations.
-11. Validate the request and resolve merchant-scoped resources.
-12. Invoke the existing application/domain service.
-13. Persist the audit log and idempotent response.
-14. Enqueue relevant webhook events.
-15. Return the normalized public response.
